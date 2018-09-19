@@ -8,7 +8,7 @@ namespace DES
 {
     public class ManagerMatrix
     {
-        public static int[,] GetInitialTranspositionMatrix()
+        public static int[,] GetInitialPermutationMatrix()
         {
             var matrix = new int[8, 8];
             for (int i = 0, start = 58; i < 8; i++, start += i != 4 ? 2 : -7)
@@ -81,6 +81,25 @@ namespace DES
              { 41, 52, 31, 37, 47, 55, 30, 40},
              { 51, 45, 33, 48, 44, 49, 39, 56},
              { 34, 53, 46, 42, 50, 36, 29, 32}};
+        }
+
+        public static int[,] GetExpandedBlockMatrix()
+        {
+            var matrix = new int[8, 6];
+            matrix[0, 0] = 32;
+
+            for(int i = 0, item = 0; i < 8; i++, item -= 2)
+            {
+                for(int j = 0; j < 6; j++, item++)
+                {
+                    if (i == 0 && j == 0) continue;
+                    matrix[i, j] = item;
+                }
+            }
+
+            matrix[7, 5] = 1;
+
+            return matrix;
         }
     }
 }

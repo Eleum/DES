@@ -66,13 +66,14 @@ namespace DES
                 );
             }
 
-
-
-            return;
-
-            foreach (var block in text)
+            foreach(var block in text)
             {
-                InitialTransposition(block);
+                var permutedText = InitialPermutation(block);
+
+                var partLeft = permutedText.Substring(0, permutedText.Length / 2);
+                var partRight = permutedText.Substring(permutedText.Length / 2);
+
+
             }
 
             if (1 == 1)
@@ -100,9 +101,9 @@ namespace DES
             return ch;
         }
 
-        private string InitialTransposition(string text)
+        private string InitialPermutation(string text)
         {
-            return Transpose(TransposeType.Message, text, ManagerMatrix.GetInitialTranspositionMatrix());
+            return Transpose(TransposeType.Message, text, ManagerMatrix.GetInitialPermutationMatrix());
         }
 
         private string MakeKey(string keyword)
@@ -111,7 +112,7 @@ namespace DES
                 .Select(x => CharToBinary(x))
                 .Aggregate("", (prev, next) => prev + next);
 
-            var a = ManagerMatrix.GetInitialTranspositionMatrix();
+            var a = ManagerMatrix.GetInitialPermutationMatrix();
 
             return key;
         }
