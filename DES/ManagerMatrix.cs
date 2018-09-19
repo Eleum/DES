@@ -22,16 +22,16 @@ namespace DES
             return matrix;
         }
 
-        public static int[,] GetFinalTranspositionMatrix()
+        public static int[,] GetFinalPermutationMatrix()
         {
             var matrix = new int[8, 8];
-            for (int i = 0, start = 40; i < 8; i++, start += i % 2 == 0 ? 8 : 0) // rows
+            for (int i = 0, start = 40; i < 8; i++, start += i % 2 == 0 ? 8 : 0)
             {
                 for (int step = 0, startInner = start; step < 2; step++, startInner -= 32 * (2 - step), i += 2 - step)
                 {
-                    for (int j = 0; j < 8; j++) //cols
+                    for (int j = 0; j < 8; j++)
                     {
-                        matrix[i, j] = startInner - j;
+                        matrix[j, i] = startInner - j;
                     }
                 }
             }

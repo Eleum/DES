@@ -26,7 +26,7 @@ namespace DES
                 throw new Exception("Text for encryption cannot be empty");
 
             while ((text.Length * CHARSIZE) % SOURCEBLOCKSIZE != 0)
-                text += "#";
+                text += "\0";
 
             var blocksCount = text.Length * CHARSIZE / SOURCEBLOCKSIZE;
 
@@ -40,8 +40,11 @@ namespace DES
 
         public MainWindowViewModel()
         {
-            var text = CompleteAndDivide("#Eg«Íï");
-            var initialKey = MakeKey("4Wy¼ßñ");
+            //var text = CompleteAndDivide("#Eg«Íï");
+            var text = CompleteAndDivide("LIFE IS PAIN");
+            var initialKey = MakeKey("DIMA510");
+            //var text = CompleteAndDivide("LIFE IS PAIN");
+            //var initialKey = MakeKey("DIMA1234");
             var key = Transpose(TransposeType.CompressedKey, initialKey, ManagerMatrix.GetCompressedKeyMatrix());
 
             var keyParts = new string[17, 2];
@@ -67,9 +70,21 @@ namespace DES
                 );
             } // TODO: another function
 
+            var result = string.Empty;
+
             foreach (var block in text)
             {
-                
+                var encodedBlock = EncodeBlock(block);
+
+                result += string.Join("", 
+                    encodedBlock.SplitIntoNParts(8)
+                    .Select(x => Convert.ToInt32(x, 2))
+                    .Select(x => 
+                    {
+                        var temp = x.ToString("X");
+                        return temp.Length == 2 ? temp : "0" + temp;
+                    })
+                );
             }
         }
 
@@ -92,7 +107,7 @@ namespace DES
 
         private string InitialPermutation(string text)
         {
-            return Transpose(TransposeType.Message, text, ManagerMatrix.GetInitialPermutationMatrix());
+            return Transpose(TransposeType.InitialPermutation, text, ManagerMatrix.GetInitialPermutationMatrix());
         }
 
         private string MakeKey(string keyword)
@@ -100,8 +115,6 @@ namespace DES
             var key = keyword
                 .Select(x => CharToBinary(x))
                 .Aggregate("", (prev, next) => prev + next);
-
-            var a = ManagerMatrix.GetInitialPermutationMatrix();
 
             return key;
         }
@@ -114,9 +127,12 @@ namespace DES
 
             for (int i = 0; i < 64; i++)
             {
-                if (i != 0 && (i + 1) % 8 == 0)
+                if ((i + 1) % 8 == 0)
                 {
-                    var onesCount = bits.Skip(((i + 1) / 8 - 1) * 8).Take(7).Aggregate(0, (prev, next) => prev + next);
+                    var onesCount = bits
+                        .Skip(((i + 1) / 8 - 1) * 8)
+                        .Take(7)
+                        .Aggregate(0, (prev, next) => prev + next);
                     bits[i] = onesCount % 2 == 0 ? 1 : 0;
                     continue;
                 }
@@ -141,7 +157,8 @@ namespace DES
 
             switch (type)
             {
-                case TransposeType.Message:
+                case TransposeType.InitialPermutation:
+                case TransposeType.FinalPermutation:
                     temp = new char[64];
                     N = M = 8;
                     break;
@@ -233,9 +250,9 @@ namespace DES
 
         private string XOROperation(string left, string right)
         {
-            var output = new char[48];
+            var output = new char[left.Length];
 
-            for (int i = 0; i < 48; i++)
+            for (int i = 0; i < left.Length; i++)
             {
                 output[i] = left[i].Equals(right[i]) ? '0' : '1';
             }
@@ -248,26 +265,30 @@ namespace DES
             return Transpose(TransposeType.SBoxPermutation, expression, ManagerMatrix.GetSBoxPermutationMatrix());
         }
 
-        private void EncodeBlock(string block)
+        private string EncodeBlock(string block)
         {
             var permutatedText = InitialPermutation(block);
 
             LRs[0, 0] = permutatedText.Substring(0, permutatedText.Length / 2);
-            LRs[0, 1] = permutatedText.Substring(permutatedText.Length / 2);
+            LRs[1, 0] = permutatedText.Substring(permutatedText.Length / 2);
 
             GetLeftRight();
+
+            var blockToEncode = LRs[1, 16] + LRs[0, 16];
+
+            return Transpose(TransposeType.FinalPermutation, blockToEncode, ManagerMatrix.GetFinalPermutationMatrix());
         }
 
         private void GetLeftRight()
         {
             for (int i = 1; i < 17; i++)
             {
-                LRs[i, 0] = LRs[i - 1, 1];
+                LRs[0, i] = LRs[1, i - 1];
 
-                var expandedBlock = Transpose(TransposeType.ExpandedBlock, LRs[i - 1, 1], ManagerMatrix.GetExpandedBlockMatrix());
-                var expression = FFunction(expandedBlock, roundKeys[0]);
+                var expandedBlock = Transpose(TransposeType.ExpandedBlock, LRs[1, i - 1], ManagerMatrix.GetExpandedBlockMatrix());
+                var expression = FFunction(expandedBlock, roundKeys[i-1]);
 
-                LRs[i, 1] = XOROperation(LRs[i - 1, 0], expression);
+                LRs[1, i] = XOROperation(LRs[0, i - 1], expression);
             }
         }
     }

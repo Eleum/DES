@@ -8,7 +8,8 @@ namespace DES
 {
     enum TransposeType
     {
-        Message,
+        InitialPermutation,
+        FinalPermutation,
         CompressedKey, 
         RoundKey,
         ExpandedBlock,
