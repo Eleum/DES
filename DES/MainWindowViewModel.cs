@@ -17,6 +17,7 @@ namespace DES
         private const string KEY = "lifepain";
 
         private string[] roundKeys = new string[16];
+        private string[,] LRs = new string[2, 17];
 
         //TODO: divide this into multiple functions
         private IEnumerable<string> CompleteAndDivide(string text)
@@ -64,23 +65,11 @@ namespace DES
                     string.Join("", keyParts[i + 1, 0], keyParts[i + 1, 1]), // +1 coz this this array contains 17 elements
                     ManagerMatrix.GetPBoxCompressMatrix()
                 );
-            }
+            } // TODO: another function
 
             foreach (var block in text)
             {
-                var permutatedText = InitialPermutation(block);
-
-                var partLeft = permutatedText.Substring(0, permutatedText.Length / 2);
-                var partRight = permutatedText.Substring(permutatedText.Length / 2);
-
-                var expandedBlock = Transpose(TransposeType.ExpandedBlock, partRight, ManagerMatrix.GetExpandedBlockMatrix());
-
-                var a = FFunction(expandedBlock, roundKeys[0]);
-            }
-
-            if (1 == 1) //нах я это написал?????????
-            {
-                var a = Convert.ToString('i', 2);
+                
             }
         }
 
@@ -168,6 +157,10 @@ namespace DES
                     temp = new char[48];
                     N = 8; M = 6;
                     break;
+                case TransposeType.SBoxPermutation:
+                    temp = new char[32];
+                    N = 8; M = 4;
+                    break;
             }
 
             for (int i = 0; i < N; i++)
@@ -206,14 +199,14 @@ namespace DES
         /// <returns></returns>
         private string FFunction(string block, string key)
         {
-            var expression = XORKeyBlock(key, block);
+            var expression = XOROperation(key, block);
             var SBoxedExpression = SBoxOperation(expression);
-            return 
+            return SBoxPermutation(SBoxedExpression);
         }
 
         private string ProcessSBox(string text, int[,] sbox)
         {
-            int row = Convert.ToInt32((text[0] + text[5]).ToString(), 2);
+            int row = Convert.ToInt32(text[0].ToString() + text[5].ToString(), 2);
             int col = Convert.ToInt32(text.Substring(1, 4), 2);
 
             var result = Convert.ToString(sbox[row, col], 2);
@@ -230,7 +223,7 @@ namespace DES
         {
             var result = string.Empty;
 
-            for(int i = 0; i < 6; i++)
+            for(int i = 0; i < 8; i++)
             {
                 result += ProcessSBox(expression.Substring(i * 6, 6), ManagerMatrix.GetSBoxMatrix(i+1));
             }
@@ -238,27 +231,44 @@ namespace DES
             return result;
         }
 
-        private string XORKeyBlock(string key, string block)
+        private string XOROperation(string left, string right)
         {
             var output = new char[48];
 
             for (int i = 0; i < 48; i++)
             {
-                output[i] = key[i].Equals(block[i]) ? '0' : '1';
+                output[i] = left[i].Equals(right[i]) ? '0' : '1';
             }
 
             return string.Join("", output);
         }
 
-        private string SBoxPermutation()
+        private string SBoxPermutation(string expression)
         {
-
+            return Transpose(TransposeType.SBoxPermutation, expression, ManagerMatrix.GetSBoxPermutationMatrix());
         }
 
-        private void CompressionPermutation()
+        private void EncodeBlock(string block)
         {
+            var permutatedText = InitialPermutation(block);
 
+            LRs[0, 0] = permutatedText.Substring(0, permutatedText.Length / 2);
+            LRs[0, 1] = permutatedText.Substring(permutatedText.Length / 2);
+
+            GetLeftRight();
         }
 
+        private void GetLeftRight()
+        {
+            for (int i = 1; i < 17; i++)
+            {
+                LRs[i, 0] = LRs[i - 1, 1];
+
+                var expandedBlock = Transpose(TransposeType.ExpandedBlock, LRs[i - 1, 1], ManagerMatrix.GetExpandedBlockMatrix());
+                var expression = FFunction(expandedBlock, roundKeys[0]);
+
+                LRs[i, 1] = XOROperation(LRs[i - 1, 0], expression);
+            }
+        }
     }
 }

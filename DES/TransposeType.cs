@@ -11,6 +11,7 @@ namespace DES
         Message,
         CompressedKey, 
         RoundKey,
-        ExpandedBlock
+        ExpandedBlock,
+        SBoxPermutation
     }
 }
