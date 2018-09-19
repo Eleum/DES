@@ -8,9 +8,9 @@ namespace DES
 {
     public class MainWindowViewModel
     {
-        private const int 
-            SOURCEBLOCKSIZE = 64, 
-            CHARSIZE = 8, 
+        private const int
+            SOURCEBLOCKSIZE = 64,
+            CHARSIZE = 8,
             KEYBLOCKSIZE = 56,
             ROUNDS = 16;
 
@@ -24,7 +24,7 @@ namespace DES
             if (string.IsNullOrWhiteSpace(text))
                 throw new Exception("Text for encryption cannot be empty");
 
-            while((text.Length * CHARSIZE) % SOURCEBLOCKSIZE != 0)
+            while ((text.Length * CHARSIZE) % SOURCEBLOCKSIZE != 0)
                 text += "#";
 
             var blocksCount = text.Length * CHARSIZE / SOURCEBLOCKSIZE;
@@ -51,35 +51,35 @@ namespace DES
 
             for (int i = 1; i < 17; i++)
             {
-                for(int j = 0; j < 2; j++)
+                for (int j = 0; j < 2; j++)
                 {
                     keyParts[i, j] = Shift(keyParts[i - 1, j], oneTimeShift.Contains(i) ? 1 : 2);
                 }
             }
 
-            for(int i = 0; i < 16; i++)
+            for (int i = 0; i < 16; i++)
             {
                 roundKeys[i] = Transpose(
-                    TransposeType.RoundKey, 
+                    TransposeType.RoundKey,
                     string.Join("", keyParts[i + 1, 0], keyParts[i + 1, 1]), // +1 coz this this array contains 17 elements
                     ManagerMatrix.GetPBoxCompressMatrix()
                 );
             }
 
-            foreach(var block in text)
+            foreach (var block in text)
             {
-                var permutedText = InitialPermutation(block);
+                var permutatedText = InitialPermutation(block);
 
-                var partLeft = permutedText.Substring(0, permutedText.Length / 2);
-                var partRight = permutedText.Substring(permutedText.Length / 2);
+                var partLeft = permutatedText.Substring(0, permutatedText.Length / 2);
+                var partRight = permutatedText.Substring(permutatedText.Length / 2);
 
                 var expandedBlock = Transpose(TransposeType.ExpandedBlock, partRight, ManagerMatrix.GetExpandedBlockMatrix());
 
                 var a = FFunction(expandedBlock, roundKeys[0]);
             }
 
-            if (1 == 1)
-             {
+            if (1 == 1) //нах я это написал?????????
+            {
                 var a = Convert.ToString('i', 2);
             }
         }
@@ -122,17 +122,17 @@ namespace DES
             var random = new Random();
 
             int[] bits = new int[64];
-            
-            for(int i = 0; i < 64; i++)
+
+            for (int i = 0; i < 64; i++)
             {
-                if(i != 0 && (i+1)%8 == 0)
+                if (i != 0 && (i + 1) % 8 == 0)
                 {
-                    var onesCount = bits.Skip(((i+1)/8-1)*8).Take(7).Aggregate(0, (prev, next) => prev + next);
+                    var onesCount = bits.Skip(((i + 1) / 8 - 1) * 8).Take(7).Aggregate(0, (prev, next) => prev + next);
                     bits[i] = onesCount % 2 == 0 ? 1 : 0;
                     continue;
                 }
 
-                bits[i] = random.Next(0, 2); 
+                bits[i] = random.Next(0, 2);
             }
 
             return bits.Aggregate("", (prev, next) => prev + next);
@@ -172,9 +172,9 @@ namespace DES
 
             for (int i = 0; i < N; i++)
             {
-                for(int j = 0; j < M; j++)
+                for (int j = 0; j < M; j++)
                 {
-                    temp[i*M+j] = source[matrix[i, j]-1];
+                    temp[i * M + j] = source[matrix[i, j] - 1];
                 }
             }
 
@@ -190,30 +190,69 @@ namespace DES
 
         private string Shift(string key, int times)
         {
-            for(int i = 0; i < times; i++)
+            for (int i = 0; i < times; i++)
             {
                 key = key.Substring(1, key.Length - 1) + key.Substring(0, 1);
             }
-            
+
             return key;
         }
 
         /// <summary>
-        /// XOR operation of bits between key and expanded block
+        /// XOR operation of bits between key and expanded block followed by SBox operations and its permutation
         /// </summary>
         /// <param name="block">Expanded block of (n-1) round</param>
         /// <param name="key">Round key</param>
         /// <returns></returns>
         private string FFunction(string block, string key)
         {
+            var expression = XORKeyBlock(key, block);
+            var SBoxedExpression = SBoxOperation(expression);
+            return 
+        }
+
+        private string ProcessSBox(string text, int[,] sbox)
+        {
+            int row = Convert.ToInt32((text[0] + text[5]).ToString(), 2);
+            int col = Convert.ToInt32(text.Substring(1, 4), 2);
+
+            var result = Convert.ToString(sbox[row, col], 2);
+
+            while(result.Length < 4)
+            {
+                result = "0" + result;
+            }
+
+            return result;
+        }
+
+        private string SBoxOperation(string expression)
+        {
+            var result = string.Empty;
+
+            for(int i = 0; i < 6; i++)
+            {
+                result += ProcessSBox(expression.Substring(i * 6, 6), ManagerMatrix.GetSBoxMatrix(i+1));
+            }
+
+            return result;
+        }
+
+        private string XORKeyBlock(string key, string block)
+        {
             var output = new char[48];
 
-            for(int i = 0; i < 48; i++)
+            for (int i = 0; i < 48; i++)
             {
                 output[i] = key[i].Equals(block[i]) ? '0' : '1';
             }
 
             return string.Join("", output);
+        }
+
+        private string SBoxPermutation()
+        {
+
         }
 
         private void CompressionPermutation()
