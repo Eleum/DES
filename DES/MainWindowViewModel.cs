@@ -73,11 +73,13 @@ namespace DES
                 var partLeft = permutedText.Substring(0, permutedText.Length / 2);
                 var partRight = permutedText.Substring(permutedText.Length / 2);
 
+                var expandedBlock = Transpose(TransposeType.ExpandedBlock, partRight, ManagerMatrix.GetExpandedBlockMatrix());
 
+                var a = FFunction(expandedBlock, roundKeys[0]);
             }
 
             if (1 == 1)
-            {
+             {
                 var a = Convert.ToString('i', 2);
             }
         }
@@ -87,10 +89,8 @@ namespace DES
         /// </summary>
         /// <param name="char"></param>
         /// <returns></returns>
-
         private string CharToBinary(char @char)
         {
-            // translating them to binary blocks
             var ch = Convert.ToString(@char, 2);
 
             while (ch.Length < CHARSIZE)
@@ -164,6 +164,10 @@ namespace DES
                     temp = new char[48];
                     N = 6; M = 8;
                     break;
+                case TransposeType.ExpandedBlock:
+                    temp = new char[48];
+                    N = 8; M = 6;
+                    break;
             }
 
             for (int i = 0; i < N; i++)
@@ -194,7 +198,25 @@ namespace DES
             return key;
         }
 
-        private void CompressionPermitation()
+        /// <summary>
+        /// XOR operation of bits between key and expanded block
+        /// </summary>
+        /// <param name="block">Expanded block of (n-1) round</param>
+        /// <param name="key">Round key</param>
+        /// <returns></returns>
+        private string FFunction(string block, string key)
+        {
+            var output = new char[48];
+
+            for(int i = 0; i < 48; i++)
+            {
+                output[i] = key[i].Equals(block[i]) ? '0' : '1';
+            }
+
+            return string.Join("", output);
+        }
+
+        private void CompressionPermutation()
         {
 
         }

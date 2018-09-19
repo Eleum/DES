@@ -10,6 +10,7 @@ namespace DES
     {
         Message,
         CompressedKey, 
-        RoundKey
+        RoundKey,
+        ExpandedBlock
     }
 }
