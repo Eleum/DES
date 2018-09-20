@@ -55,6 +55,7 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="BinaryMode.cs" />
+    <Compile Include="RoundInfo.cs" />
     <Compile Include="StringHelper.cs" />
     <Compile Include="TransposeType.cs" />
     <Page Include="MainWindow.xaml">

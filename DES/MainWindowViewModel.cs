@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -13,6 +14,16 @@ namespace DES
             CHARSIZE = 8,
             KEYBLOCKSIZE = 56,
             ROUNDS = 16;
+
+        public string InputText { get; set; }
+        public string InputKey { get; set; }
+        public string TextAndKey { get; set; }
+        public string InitialPermutationText { get; set; }
+        public string AfterJoin { get; set; }
+        public string EncodedText { get; set; }
+        public bool IsDefaultKey { get; set; }
+        public ObservableCollection<RoundInfo> InfoEncoded { get; set; }
+        public ObservableCollection<RoundInfo> InfoDecoded { get; set; }
 
         private const string KEY = "lifepain";
 
@@ -68,8 +79,16 @@ namespace DES
 
         public MainWindowViewModel()
         {
-            var text = CompleteAndDivide("0123456789ABCDEF", InputMode.Hex);
-            var initialKey = BinaryKey("133457799BBCDFF1", InputMode.Hex);
+            //var text = CompleteAndDivide("0123456789ABCDEF", InputMode.Hex);
+            InputText = "0123456789ABCDEF";
+            InputKey = "133457799BBCDFF1";
+            TextAndKey = $"Initial text: {InputText}\nKey: {InputKey}";
+            InfoEncoded = new ObservableCollection<RoundInfo>();
+            InfoDecoded = new ObservableCollection<RoundInfo>();
+
+            var text = CompleteAndDivide(InputText, InputMode.Hex);
+            var initialKey = BinaryKey(InputKey, InputMode.Hex);
+
             var key = Transpose(TransposeType.CompressedKey, initialKey, ManagerMatrix.GetCompressedKeyMatrix());
 
             var keyParts = new string[17, 2];
@@ -101,7 +120,7 @@ namespace DES
             {
                 var encodedBlock = EncodeBlock(block);
 
-                result += string.Join("", 
+                var encodedPart = string.Join("", 
                     encodedBlock.SplitByNChars(8)
                     .Select(x => Convert.ToInt32(x, 2))
                     .Select(x => 
@@ -110,6 +129,9 @@ namespace DES
                         return temp.Length == 2 ? temp : "0" + temp;
                     })
                 );
+
+                EncodedText = $"Encrypted text: {encodedPart}";
+                result += encodedPart;
             }
 
             var encrypted = result;
@@ -150,6 +172,20 @@ namespace DES
         private string HexToBinary(string hexString)
         {
             return FillBinaryString(Convert.ToString(Convert.ToInt32(hexString, 16), 2));
+        }
+
+        private string BinaryToHex(string binString)
+        {
+            var result = string.Empty;
+
+            for(int i = 0; i < binString.Length; i += 8)
+            {
+                var temp = Convert.ToString(Convert.ToInt32(binString.Substring(i, 8), 2), 16).ToUpper();
+                if (temp.Length < 2) temp = "0" + temp;
+                result += temp;
+            }
+
+            return result;
         }
 
         private string FillBinaryString(string source)
@@ -330,14 +366,18 @@ namespace DES
 
         private string EncodeBlock(string block)
         {
-            var permutatedText = InitialPermutation(block);
+            InitialPermutationText = InitialPermutation(block);
 
-            LRs[0, 0] = permutatedText.Substring(0, permutatedText.Length / 2);
-            LRs[1, 0] = permutatedText.Substring(permutatedText.Length / 2);
+            LRs[0, 0] = InitialPermutationText.Substring(0, InitialPermutationText.Length / 2);
+            LRs[1, 0] = InitialPermutationText.Substring(InitialPermutationText.Length / 2);
 
-            GetLeftRight();
+            InitialPermutationText = $"Initial permutation: {BinaryToHex(InitialPermutationText)}\n" +
+                $"Parts: L0 = {BinaryToHex(LRs[0, 0])}; R0 = {BinaryToHex(LRs[1, 0])}";
+
+            GetLeftRight(InfoEncoded);
 
             var blockToEncode = LRs[1, 16] + LRs[0, 16];
+            AfterJoin = $"After join: {BinaryToHex(blockToEncode)}";
 
             return Transpose(TransposeType.FinalPermutation, blockToEncode, ManagerMatrix.GetFinalPermutationMatrix());
         }
@@ -346,14 +386,14 @@ namespace DES
         {
             var permutatedText = InitialPermutation(block);
 
-            GetLeftRight(true);
+            GetLeftRight(InfoDecoded, true);
 
             var blockToDecode = LRs[0, 0] + LRs[1, 0];
 
             return Transpose(TransposeType.FinalPermutation, blockToDecode, ManagerMatrix.GetFinalPermutationMatrix());
         }
 
-        private void GetLeftRight(bool isReverse = false)
+        private void GetLeftRight(ObservableCollection<RoundInfo> info, bool isReverse = false)
         {
             if(isReverse)
             {
@@ -377,10 +417,16 @@ namespace DES
                     var expression = FFunction(expandedBlock, roundKeys[i-1]);
 
                     LRs[1, i] = XOROperation(LRs[0, i - 1], expression);
+
+                    info.Add(new RoundInfo
+                    {
+                        RoundNo = i,
+                        LeftPart = BinaryToHex(LRs[0, i]),
+                        RightPart = BinaryToHex(LRs[1, i]),
+                        RoundKey = BinaryToHex(roundKeys[i - 1])
+                    });
                 }
             }
-
-            
         }
     }
 }
