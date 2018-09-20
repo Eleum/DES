@@ -8,7 +8,7 @@ namespace DES
 {
     public static class StringHelper
     {
-        public static IEnumerable<string> SplitIntoNParts(this string source, int n)
+        public static IEnumerable<string> SplitByNChars(this string source, int n)
         {
             for(int i = 0; i < source.Length; i += n)
             {

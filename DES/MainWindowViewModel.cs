@@ -20,31 +20,56 @@ namespace DES
         private string[,] LRs = new string[2, 17];
 
         //TODO: divide this into multiple functions
-        private IEnumerable<string> CompleteAndDivide(string text)
+        private IEnumerable<string> CompleteAndDivide(string text, InputMode mode)
         {
             if (string.IsNullOrWhiteSpace(text))
                 throw new Exception("Text for encryption cannot be empty");
 
-            while ((text.Length * CHARSIZE) % SOURCEBLOCKSIZE != 0)
-                text += "\0";
+            var blocksCount = -1;
 
-            var blocksCount = text.Length * CHARSIZE / SOURCEBLOCKSIZE;
-
-            for (int i = 0; i < blocksCount; i++)
+            switch (mode)
             {
-                yield return text.Substring(i * CHARSIZE, CHARSIZE)
-                    .Select(x => CharToBinary(x))
-                    .Aggregate("", (prev, next) => prev + next);
+                case InputMode.PlainText:
+                    while ((text.Length * CHARSIZE) % SOURCEBLOCKSIZE != 0)
+                    {
+                        text += "\0";
+                    }
+                    blocksCount = text.Length * CHARSIZE / SOURCEBLOCKSIZE;
+                    break;
+
+                case InputMode.Hex:
+                    while ((text.Length * CHARSIZE/2) % SOURCEBLOCKSIZE != 0)
+                    {
+                        text += "00";
+                    }
+                    blocksCount = text.Length * CHARSIZE/2 / SOURCEBLOCKSIZE;
+                    break;
+            }
+
+            switch (mode)
+            {
+                case InputMode.PlainText:
+                    for (int i = 0; i < blocksCount; i++)
+                    {
+                        yield return string.Join("", text.Substring(i * CHARSIZE, CHARSIZE)
+                            .Select(x => CharToBinary(x)));
+                    }
+                    break;
+
+                case InputMode.Hex:
+                    for (int i = 0; i < blocksCount; i++)
+                    {
+                        yield return string.Join("", text.SplitByNChars(2)
+                            .Select(x => HexToBinary(x)));
+                    }
+                    break;
             }
         }
 
         public MainWindowViewModel()
         {
-            //var text = CompleteAndDivide("#Eg«Íï");
-            var text = CompleteAndDivide("LIFE IS PAIN");
-            var initialKey = MakeKey("DIMA510");
-            //var text = CompleteAndDivide("LIFE IS PAIN");
-            //var initialKey = MakeKey("DIMA1234");
+            var text = CompleteAndDivide("0123456789ABCDEF", InputMode.Hex);
+            var initialKey = BinaryKey("133457799BBCDFF1", InputMode.Hex);
             var key = Transpose(TransposeType.CompressedKey, initialKey, ManagerMatrix.GetCompressedKeyMatrix());
 
             var keyParts = new string[17, 2];
@@ -77,9 +102,26 @@ namespace DES
                 var encodedBlock = EncodeBlock(block);
 
                 result += string.Join("", 
-                    encodedBlock.SplitIntoNParts(8)
+                    encodedBlock.SplitByNChars(8)
                     .Select(x => Convert.ToInt32(x, 2))
                     .Select(x => 
+                    {
+                        var temp = x.ToString("X");
+                        return temp.Length == 2 ? temp : "0" + temp;
+                    })
+                );
+            }
+
+            var encrypted = result;
+            result = "";
+            foreach (var block in CompleteAndDivide(encrypted, InputMode.Hex))
+            {
+                var decodedBlock = DecodeBlock(block);
+
+                result += string.Join("",
+                    decodedBlock.SplitByNChars(8)
+                    .Select(x => Convert.ToInt32(x, 2))
+                    .Select(x =>
                     {
                         var temp = x.ToString("X");
                         return temp.Length == 2 ? temp : "0" + temp;
@@ -105,18 +147,39 @@ namespace DES
             return ch;
         }
 
+        private string HexToBinary(string hexString)
+        {
+            return FillBinaryString(Convert.ToString(Convert.ToInt32(hexString, 16), 2));
+        }
+
+        private string FillBinaryString(string source)
+        {
+            while (source.Length < CHARSIZE)
+            {
+                source = "0" + source;
+            }
+            return source;
+        }
+
         private string InitialPermutation(string text)
         {
             return Transpose(TransposeType.InitialPermutation, text, ManagerMatrix.GetInitialPermutationMatrix());
         }
 
-        private string MakeKey(string keyword)
+        private string BinaryKey(string keyword, InputMode mode)
         {
-            var key = keyword
-                .Select(x => CharToBinary(x))
-                .Aggregate("", (prev, next) => prev + next);
+            IEnumerable<string> key;
 
-            return key;
+            if(mode == InputMode.Hex)
+            {
+                key = keyword.SplitByNChars(2).Select(x => HexToBinary(x));
+            }
+            else
+            {
+                key = keyword.Select(x => CharToBinary(x));
+            }
+
+            return string.Join("", key);
         }
 
         private string GenerateKey()
@@ -279,17 +342,45 @@ namespace DES
             return Transpose(TransposeType.FinalPermutation, blockToEncode, ManagerMatrix.GetFinalPermutationMatrix());
         }
 
-        private void GetLeftRight()
+        private string DecodeBlock(string block)
         {
-            for (int i = 1; i < 17; i++)
+            var permutatedText = InitialPermutation(block);
+
+            GetLeftRight(true);
+
+            var blockToDecode = LRs[0, 0] + LRs[1, 0];
+
+            return Transpose(TransposeType.FinalPermutation, blockToDecode, ManagerMatrix.GetFinalPermutationMatrix());
+        }
+
+        private void GetLeftRight(bool isReverse = false)
+        {
+            if(isReverse)
             {
-                LRs[0, i] = LRs[1, i - 1];
+                for (int i = 16; i > 0; i--)
+                {
+                    LRs[1, i-1] = LRs[0, i];
 
-                var expandedBlock = Transpose(TransposeType.ExpandedBlock, LRs[1, i - 1], ManagerMatrix.GetExpandedBlockMatrix());
-                var expression = FFunction(expandedBlock, roundKeys[i-1]);
+                    var expandedBlock = Transpose(TransposeType.ExpandedBlock, LRs[0, i], ManagerMatrix.GetExpandedBlockMatrix());
+                    var expression = FFunction(expandedBlock, roundKeys[i-1]);
 
-                LRs[1, i] = XOROperation(LRs[0, i - 1], expression);
+                    LRs[0, i-1] = XOROperation(LRs[1, i], expression);
+                }
             }
+            else
+            {
+                for (int i = 1; i < 17; i++)
+                {
+                    LRs[0, i] = LRs[1, i - 1];
+
+                    var expandedBlock = Transpose(TransposeType.ExpandedBlock, LRs[1, i - 1], ManagerMatrix.GetExpandedBlockMatrix());
+                    var expression = FFunction(expandedBlock, roundKeys[i-1]);
+
+                    LRs[1, i] = XOROperation(LRs[0, i - 1], expression);
+                }
+            }
+
+            
         }
     }
 }

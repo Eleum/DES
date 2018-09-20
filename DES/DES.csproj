@@ -54,6 +54,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="BinaryMode.cs" />
     <Compile Include="StringHelper.cs" />
     <Compile Include="TransposeType.cs" />
     <Page Include="MainWindow.xaml">
