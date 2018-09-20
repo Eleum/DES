@@ -23,6 +23,7 @@ namespace DES
         public MainWindow()
         {
             InitializeComponent();
+            DataContext = new MainWindowViewModel();
         }
     }
 }

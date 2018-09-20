@@ -6,9 +6,9 @@
         xmlns:local="clr-namespace:DES"
         mc:Ignorable="d"
         Title="DES algorithm" Height="Auto" Width="800">
-    <Window.DataContext>
+    <!--<Window.DataContext>
         <local:MainWindowViewModel />
-    </Window.DataContext>
+    </Window.DataContext>-->
 
     <StackPanel Orientation="Horizontal">
         <GroupBox Header="Start here!" Width="250" Margin="0, 0, 5, 0">
@@ -22,7 +22,7 @@
                     <TextBlock Text="Key" DockPanel.Dock="Left"/>
                     <CheckBox Content="Use default key" HorizontalAlignment="Right" IsChecked="{Binding IsDefaultKey}"/>
                 </DockPanel>
-                <TextBox Text="{Binding InputKey}" />
+                <TextBox Text="{Binding InputKey, Mode=TwoWay}" />
                 <DockPanel Margin="0, 5, 0, 0">
                     <Button Content="Encrypt" DockPanel.Dock="Left" Margin="0, 0, 5, 0"
                             Command="{Binding EncryptCommand}"/>
@@ -30,7 +30,7 @@
                             Command="{Binding DecryptCommand}"/>
                 </DockPanel>
                 <TextBlock Text="Result" Margin="0, 15, 0, 0" />
-                <TextBox Text="{Binding Result}" 
+                <TextBox Text="{Binding ResultField}" 
                          IsReadOnly="True" 
                          Height="100"/>
             </StackPanel>
@@ -39,7 +39,7 @@
             <Border.Style>
                 <Style>
                     <Style.Triggers>
-                        <DataTrigger Binding="{Binding IsEncrypt}" Value="True">
+                        <DataTrigger Binding="{Binding IsEncrypt, Mode=TwoWay}" Value="yes">
                             <Setter Property="FrameworkElement.Visibility" Value="Visible" />
                         </DataTrigger>
                     </Style.Triggers>
@@ -83,7 +83,7 @@
                 </DataGrid>
                 <TextBlock Grid.Row="3" Text="{Binding AfterJoin}" />
                 <Border Grid.Row="4" Grid.ColumnSpan="4" BorderThickness="0, 1, 0, 1" BorderBrush="Black">
-                    <TextBlock Grid.Row="4" Text="{Binding EncodedText}" />
+                    <TextBlock Grid.Row="4" Text="{Binding Result}" />
                 </Border>
             </Grid>
         </Border>
@@ -91,7 +91,7 @@
             <Border.Style>
                 <Style>
                     <Style.Triggers>
-                        <DataTrigger Binding="{Binding IsEncrypt}" Value="True">
+                        <DataTrigger Binding="{Binding IsEncrypt, Mode=TwoWay}" Value="no">
                             <Setter Property="FrameworkElement.Visibility" Value="Visible" />
                         </DataTrigger>
                     </Style.Triggers>
@@ -135,7 +135,7 @@
                 </DataGrid>
                 <TextBlock Grid.Row="3" Text="{Binding AfterJoin}" />
                 <Border Grid.Row="4" Grid.ColumnSpan="4" BorderThickness="0, 1, 0, 1" BorderBrush="Black">
-                    <TextBlock Grid.Row="4" Text="{Binding EncodedText}" />
+                    <TextBlock Grid.Row="4" Text="{Binding Result}" />
                 </Border>
             </Grid>
         </Border>
