@@ -25,5 +25,11 @@ namespace DES
             InitializeComponent();
             DataContext = new MainWindowViewModel();
         }
+
+        private void CheckBox_Loaded(object sender, RoutedEventArgs e)
+        {
+            ((MainWindowViewModel)DataContext).InputKey = "BSUIR510";
+            //((MainWindowViewModel)DataContext).InputKey = MainWindowViewModel.BinaryToHex(MainWindowViewModel.GenerateKey());
+        }
     }
 }
