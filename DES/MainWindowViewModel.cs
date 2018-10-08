@@ -15,7 +15,7 @@ namespace DES
     {
         private const int
             SOURCEBLOCKSIZE = 64,
-            CHARSIZE = 8,
+            CHARSIZE = 16,
             KEYBLOCKSIZE = 56,
             ROUNDS = 16;
 
@@ -182,6 +182,20 @@ namespace DES
             }
         }
 
+        private ObservableCollection<RoundInfo> _infoDecoded;
+        public ObservableCollection<RoundInfo> InfoDecoded
+        {
+            get
+            {
+                return _infoDecoded;
+            }
+            set
+            {
+                _infoDecoded = value;
+                OnPropertyChanged("InfoDecoded");
+            }
+        }
+
         private string[] roundKeys = new string[16];
         private string[,] LRs = new string[2, 17];
 
@@ -196,9 +210,7 @@ namespace DES
 
         //TODO: divide this into multiple functions
         private IEnumerable<string> CompleteAndDivide(string text, InputMode mode)
-        {
-            var blocksCount = -1;
-
+        { 
             switch (mode)
             {
                 case InputMode.PlainText:
@@ -206,7 +218,6 @@ namespace DES
                     {
                         text += "\0";
                     }
-                    blocksCount = text.Length * CHARSIZE / SOURCEBLOCKSIZE;
                     break;
 
                 case InputMode.Hex:
@@ -214,25 +225,30 @@ namespace DES
                     {
                         text += "00";
                     }
-                    blocksCount = text.Length * CHARSIZE / 2 / SOURCEBLOCKSIZE;
                     break;
             }
+
+            var blocksCount = text.Length * CHARSIZE / SOURCEBLOCKSIZE;
+
+            var result = "";
 
             switch (mode)
             {
                 case InputMode.PlainText:
                     for (int i = 0; i < blocksCount; i++)
                     {
-                        yield return string.Join("", text.Substring(i * CHARSIZE, CHARSIZE)
-                             .Select(x => CharToBinary(x)));
+                        yield return string.Join("", 
+                            text.Substring(i * CHARSIZE, SOURCEBLOCKSIZE/CHARSIZE)
+                            .Select(x => CharToBinary(x)));
                     }
                     break;
 
                 case InputMode.Hex:
                     for (int i = 0; i < blocksCount; i++)
                     {
-                        yield return string.Join("", text.Substring(i * CHARSIZE * 2, CHARSIZE * 2).SplitByNChars(2)
-                            .Select(x => HexToBinary(x)));
+                        yield return string.Join("", 
+                            text.Substring(i * CHARSIZE/4, CHARSIZE/4)
+                            .Select(x => HexToBinary(x.ToString())));
                     }
                     break;
             }
@@ -243,11 +259,12 @@ namespace DES
             IsEncrypt = "none";
             InputText = "0123456789ABCDEF";
             InputKey = "133457799BBCDFF1";
+            //InputText = "Дима";
+            //InputKey = "12345678";
         }
 
         private Action<object> StartOperation(int type)
         {
-            //var text = CompleteAndDivide("0123456789ABCDEF", InputMode.Hex);
             if (string.IsNullOrWhiteSpace(InputText) || string.IsNullOrWhiteSpace(InputKey))
             {
                 MessageBox.Show("Text or key for operation cannot be empty", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -269,12 +286,12 @@ namespace DES
                         var encodedBlock = EncodeBlock(block);
 
                         var encodedPart = string.Join("",
-                            encodedBlock.SplitByNChars(8)
-                            .Select(x => Convert.ToInt32(x, 2))
+                            encodedBlock.SplitByNChars(CHARSIZE)
+                            .Select(x => Convert.ToInt64(x, 2))
                             .Select(x =>
                             {
                                 var temp = x.ToString("X");
-                                return temp.Length == 2 ? temp : "0" + temp;
+                                return temp.Length == CHARSIZE/4 ? temp : "0" + temp;
                             })
                         );
                         result += encodedPart;
@@ -350,7 +367,7 @@ namespace DES
 
         private string HexToBinary(string hexString)
         {
-            return FillBinaryString(Convert.ToString(Convert.ToInt32(hexString, 16), 2));
+            return FillBinaryString(Convert.ToString(Convert.ToInt64(hexString, 16), 2));
         }
 
         public static string BinaryToHex(string binString)
@@ -359,8 +376,11 @@ namespace DES
 
             for (int i = 0; i < binString.Length; i += 8)
             {
-                var temp = Convert.ToString(Convert.ToInt32(binString.Substring(i, 8), 2), 16).ToUpper();
-                if (temp.Length < 2) temp = "0" + temp;
+                var temp = Convert.ToString(Convert.ToInt64(binString.Substring(i, CHARSIZE), 2), 16).ToUpper();
+                while(temp.Length < 4)
+                {
+                    temp = "0" + temp;
+                }
                 result += temp;
             }
 
@@ -591,12 +611,12 @@ namespace DES
 
         private void GetLeftRight(ObservableCollection<RoundInfo> info, bool isReverse = false)
         {
-            for (int i = 1; i < 17; i++)
+            for (int i = 1; i < ROUNDS+1; i++)
             {
                 LRs[0, i] = LRs[1, i - 1];
 
                 var expandedBlock = Transpose(TransposeType.ExpandedBlock, LRs[1, i - 1], ManagerMatrix.GetExpandedBlockMatrix());
-                var expression = FFunction(expandedBlock, isReverse ? roundKeys[16-i] : roundKeys[i-1]);
+                var expression = FFunction(expandedBlock, isReverse ? roundKeys[ROUNDS-i] : roundKeys[i-1]);
 
                 LRs[1, i] = XOROperation(LRs[0, i - 1], expression);
 
@@ -622,7 +642,7 @@ namespace DES
 
             var oneTimeShift = new[] { 1, 2, 9, 16 };
 
-            for (int i = 1; i < 17; i++)
+            for (int i = 1; i < ROUNDS+1; i++)
             {
                 for (int j = 0; j < 2; j++)
                 {
@@ -630,7 +650,7 @@ namespace DES
                 }
             }
 
-            for (int i = 0; i < 16; i++)
+            for (int i = 0; i < ROUNDS; i++)
             {
                 roundKeys[i] = Transpose(
                     TransposeType.RoundKey,

@@ -1,8 +1,9 @@
-﻿<Window x:Class="DES.MainWindow"
+﻿<controls:MetroWindow x:Class="DES.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:controls="http://metro.mahapps.com/winfx/xaml/controls"
         xmlns:local="clr-namespace:DES"
         mc:Ignorable="d"
         Title="DES algorithm" Height="500" Width="Auto">
@@ -149,4 +150,4 @@
             </Grid>
         </Border>
     </StackPanel>
-</Window>
+</controls:MetroWindow>
