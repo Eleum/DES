@@ -15,7 +15,7 @@ namespace DES
     {
         private const int
             SOURCEBLOCKSIZE = 64,
-            CHARSIZE = 16,
+            CHARSIZE = 8,
             KEYBLOCKSIZE = 56,
             ROUNDS = 16;
 
@@ -223,44 +223,48 @@ namespace DES
                 case InputMode.Hex:
                     while ((text.Length * CHARSIZE / 2) % SOURCEBLOCKSIZE != 0)
                     {
-                        text += "00";
+                        text += "0";
                     }
                     break;
             }
 
-            var blocksCount = text.Length * CHARSIZE / SOURCEBLOCKSIZE;
-
             var result = "";
+            var blocksCount = -1;
 
             switch (mode)
             {
                 case InputMode.PlainText:
+                    var binaryString = ToBinary(text);
+                    blocksCount = binaryString.Length / SOURCEBLOCKSIZE;
+
                     for (int i = 0; i < blocksCount; i++)
                     {
-                        yield return string.Join("", 
-                            text.Substring(i * CHARSIZE, SOURCEBLOCKSIZE/CHARSIZE)
-                            .Select(x => CharToBinary(x)));
+                        yield return string.Join("", binaryString.Substring(i * SOURCEBLOCKSIZE, SOURCEBLOCKSIZE));
                     }
                     break;
 
                 case InputMode.Hex:
+                    blocksCount = text.Length * CHARSIZE / SOURCEBLOCKSIZE / 2;
                     for (int i = 0; i < blocksCount; i++)
                     {
                         yield return string.Join("", 
-                            text.Substring(i * CHARSIZE/4, CHARSIZE/4)
+                            text.Substring(i * CHARSIZE * 2, CHARSIZE * 2)
                             .Select(x => HexToBinary(x.ToString())));
                     }
                     break;
             }
+            //return result;
         }
 
         public MainWindowViewModel()
         {
             IsEncrypt = "none";
-            InputText = "0123456789ABCDEF";
+            //InputText = "0123456789ABCDEF";
             InputKey = "133457799BBCDFF1";
             //InputText = "Дима";
-            //InputKey = "12345678";
+            InputText = "asdfghjk";
+            InputText = "я пришел к тебе с приветом";
+
         }
 
         private Action<object> StartOperation(int type)
@@ -273,6 +277,7 @@ namespace DES
 
             var result = string.Empty;
             Info = new ObservableCollection<RoundInfo>();
+            InfoDecoded = new ObservableCollection<RoundInfo>();
             TextAndKey = $"Initial text: {InputText}\nKey: {InputKey}";
 
             GenerateRoundKeys();
@@ -281,13 +286,16 @@ namespace DES
             {
                 case 0:
                     var text = CompleteAndDivide(InputText, IsHexText ? InputMode.Hex : InputMode.PlainText);
+
+                    text = text.Where(x => x.Distinct().Count() != 1);
+
                     foreach (var block in text)
                     {
                         var encodedBlock = EncodeBlock(block);
 
                         var encodedPart = string.Join("",
                             encodedBlock.SplitByNChars(CHARSIZE)
-                            .Select(x => Convert.ToInt64(x, 2))
+                            .Select(x => Convert.ToInt32(x, 2))
                             .Select(x =>
                             {
                                 var temp = x.ToString("X");
@@ -303,33 +311,26 @@ namespace DES
                     break;
                 case 1:
                     var textToDecrypt = CompleteAndDivide(InputText, IsHexText ? InputMode.Hex : InputMode.PlainText);
-                    ResultField = string.Empty;
 
+                    ResultField = string.Empty;
                     var resultHex = string.Empty;
                     var resultPlain = string.Empty;
+                    var hexString = string.Empty;
 
                     foreach (var block in textToDecrypt)
                     {
                         var decodedBlock = DecodeBlock(block);
 
-                        var decodedPart = string.Join("",
+                        hexString += string.Join("",
                             decodedBlock.SplitByNChars(8)
-                            .Select(x => Convert.ToInt32(x, 2))
-                            .Select(x =>
-                            {
-                                var temp = x.ToString("X");
-                                return temp.Length == 2 ? temp : "0" + temp;
-                            })
+                            .Select(x => Convert.ToInt32(x, 2).ToString("X").PadLeft(2, '0'))
                         );
-
-                        resultHex += decodedPart;
-                        resultPlain += HexToString(decodedPart);
-
-                        Result = $"Decrypted text: {HexToString(decodedPart)}";
-                        result += decodedPart;
-                        //var a = HexToString(ResultField);
                     }
-                    ResultField = $"Hex: {resultHex}\nPlain text: {resultPlain}";
+
+                    resultPlain += HexToString(hexString);
+
+                    Result = $"Decrypted text: {resultPlain}";
+                    ResultField = $"Hex: {hexString}\nPlain text: {resultPlain}";
                     IsEncrypt = "no";
                     break;
             }
@@ -343,6 +344,7 @@ namespace DES
         /// <returns></returns>
         private string CharToBinary(char @char)
         {
+            //TODO: переписать на padleft
             var ch = Convert.ToString(@char, 2);
 
             while (ch.Length < CHARSIZE)
@@ -353,28 +355,37 @@ namespace DES
             return ch;
         }
 
+        private static string ToBinary(string source)
+        {
+            var byteSource = Encoding.UTF8.GetBytes(source);
+            return string.Concat(byteSource.Select(x =>
+            {
+                var binary = Convert.ToString(x, 2).PadLeft(CHARSIZE, '0');
+                return binary;
+            } ));
+        }
+
         public static string HexToString(string source)
         {
-            var result = string.Empty;
-            for (int i = 0; i < source.Length; i += 2)
-            {
-                var code = Convert.ToUInt32(source.Substring(i, 2), 16);
+            var bytes = new byte[source.Length / 2];
 
-                if (code != 0) result += Convert.ToChar(code);
+            for (int i = 0; i < source.Length / 2; i++)
+            {
+                bytes[i] = Convert.ToByte(source.Substring(i * 2, 2), 16);
             }
-            return result;
+            return Encoding.UTF8.GetString(bytes.Where(x => x != 0).ToArray());
         }
 
         private string HexToBinary(string hexString)
         {
-            return FillBinaryString(Convert.ToString(Convert.ToInt64(hexString, 16), 2));
+            return Convert.ToString(Convert.ToInt32(hexString, 16), 2).PadLeft(4, '0');
         }
 
         public static string BinaryToHex(string binString)
         {
             var result = string.Empty;
 
-            for (int i = 0; i < binString.Length; i += 8)
+            for (int i = 0; i < binString.Length; i += CHARSIZE)
             {
                 var temp = Convert.ToString(Convert.ToInt64(binString.Substring(i, CHARSIZE), 2), 16).ToUpper();
                 while(temp.Length < 4)
@@ -387,15 +398,6 @@ namespace DES
             return result;
         }
 
-        private string FillBinaryString(string source)
-        {
-            while (source.Length < CHARSIZE)
-            {
-                source = "0" + source;
-            }
-            return source;
-        }
-
         private string InitialPermutation(string text)
         {
             return Transpose(TransposeType.InitialPermutation, text, ManagerMatrix.GetInitialPermutationMatrix());
@@ -404,10 +406,10 @@ namespace DES
         private string BinaryKey(string keyword, InputMode mode)
         {
             IEnumerable<string> key;
-
+            
             if (mode == InputMode.Hex)
             {
-                key = keyword.SplitByNChars(2).Select(x => HexToBinary(x));
+                key = keyword.Select(x => HexToBinary(x.ToString()));
             }
             else
             {

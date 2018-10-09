@@ -18,7 +18,8 @@
                 <TextBlock Text="Enter text u want to encrypt" />
                 <TextBox Text="{Binding InputText}" Height="150" 
                          VerticalAlignment="Top" 
-                         VerticalScrollBarVisibility="Auto"/>
+                         VerticalScrollBarVisibility="Auto"
+                         TextWrapping="Wrap"/>
                 <StackPanel Orientation="Horizontal" Margin="0, 2, 0, 0">
                     <RadioButton Content="Plain text" IsChecked="{Binding IsHexText, Converter={StaticResource InverseBool}}" />
                     <RadioButton Content="Hex" Margin="10, 0, 0, 0" IsChecked="{Binding IsHex}" />
@@ -41,7 +42,8 @@
                 <TextBlock Text="Result" Margin="0, 15, 0, 0" />
                 <TextBox Text="{Binding ResultField}" 
                          IsReadOnly="True" 
-                         Height="100" HorizontalScrollBarVisibility="Auto"/>
+                         Height="100" HorizontalScrollBarVisibility="Auto"
+                         TextWrapping="Wrap"/>
             </StackPanel>
         </GroupBox>
         <Border BorderThickness="0, 0, 1, 0" BorderBrush="Black">
