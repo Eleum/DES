@@ -29,7 +29,7 @@ namespace DES
 
         private void UseDefaultKey(object sender, RoutedEventArgs e)
         {
-            ((MainWindowViewModel)DataContext).InputKey = "BSUIR510";
+            ((MainWindowViewModel)DataContext).InputKeyField = "BSUIR510";
         }
     }
 }

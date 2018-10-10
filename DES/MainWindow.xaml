@@ -16,7 +16,7 @@
         <GroupBox Header="Start here!" Width="250" Margin="0, 0, 5, 0">
             <StackPanel Margin="0, 10, 0, 0">
                 <TextBlock Text="Enter text u want to encrypt" />
-                <TextBox Text="{Binding InputText}" Height="150" 
+                <TextBox Text="{Binding InputTextField}" Height="150" 
                          VerticalAlignment="Top" 
                          VerticalScrollBarVisibility="Auto"
                          TextWrapping="Wrap" AcceptsReturn="True" />
@@ -29,11 +29,11 @@
                         </Hyperlink>
                     </TextBlock>
                 </DockPanel>
-                <DockPanel Margin="0, 10, 0, 0">
+                <DockPanel Margin="0, 10, 0, 2">
                     <TextBlock Text="Key" DockPanel.Dock="Left"/>
                     <CheckBox Content="Use default key" HorizontalAlignment="Right" IsChecked="{Binding IsDefaultKey}" Checked="UseDefaultKey"/>
                 </DockPanel>
-                <TextBox Text="{Binding InputKey, Mode=TwoWay}" />
+                <TextBox Text="{Binding InputKeyField, Mode=TwoWay}" />
                 <StackPanel Orientation="Horizontal" Margin="0, 2, 0, 0">
                     <RadioButton Content="Plain text" IsChecked="{Binding IsHexKey, Converter={StaticResource InverseBool}}" />
                     <RadioButton Content="Hex" Margin="10, 0, 0, 0" IsChecked="{Binding IsHex}" />
@@ -44,7 +44,7 @@
                     <Button Content="Decrypt" DockPanel.Dock="Left" HorizontalAlignment="Left"
                             Command="{Binding DecryptCommand}"/>
                 </DockPanel>
-                <DockPanel Margin="0, 15, 0, 0">
+                <DockPanel Margin="0, 15, 0, 2">
                     <TextBlock Text="Result" />
                     <TextBlock HorizontalAlignment="Right" >
                         <Hyperlink Command="{Binding SaveToFileCommand}">
@@ -56,7 +56,7 @@
                          IsReadOnly="True" 
                          Height="100" 
                          HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
-                         TextWrapping="Wrap"/>
+                         TextWrapping="Wrap" />
 
             </StackPanel>
         </GroupBox>
@@ -77,11 +77,13 @@
                 </Grid.RowDefinitions>
                 <Border Grid.Row="0" Grid.ColumnSpan="4" BorderThickness="0, 1, 0, 1" BorderBrush="Black">
                     <StackPanel>
-                        <TextBox Grid.Row="0" Text="{Binding InputText, StringFormat='Text: {0}'}" TextWrapping="Wrap" VerticalScrollBarVisibility="Visible" Height="45"/>
-                        <TextBox Grid.Row="1" Text="{Binding InputKey, StringFormat='Key: {0}'}" VerticalAlignment="Center" />
+                        <TextBox Grid.Row="0" Text="{Binding InputText[0], StringFormat='Text: {0}'}" TextWrapping="Wrap" VerticalScrollBarVisibility="Visible" Height="45"
+                                 IsReadOnly="True" IsReadOnlyCaretVisible="True" />
+                        <TextBox Grid.Row="1" Text="{Binding InputKey[0], StringFormat='Key: {0}'}" VerticalAlignment="Center" 
+                                 IsReadOnly="True" IsReadOnlyCaretVisible="True" />
                     </StackPanel>
                 </Border>
-                <TextBlock Grid.Row="1" Grid.ColumnSpan="4" Text="{Binding InitialPermutationText}"/>
+                <TextBlock Grid.Row="1" Grid.ColumnSpan="4" Text="{Binding InitialPermutationText[0], StringFormat='Initial permutation: {0}'}" />
                 <DataGrid Grid.Row="2" Grid.ColumnSpan="4" ItemsSource="{Binding Info}" 
                       RowHeaderWidth="0"
                       AutoGenerateColumns="False"
@@ -100,9 +102,10 @@
                         <DataGridTextColumn Header="Round key" Binding="{Binding RoundKey}"  Width="90"/>
                     </DataGrid.Columns>
                 </DataGrid>
-                <TextBlock Grid.Row="3" Grid.ColumnSpan="4" Text="{Binding AfterJoin}" Margin="0, 2, 0, 0"/>
+                <TextBlock Grid.Row="3" Grid.ColumnSpan="4" Text="{Binding AfterJoin[0], StringFormat='After join: {0}'}" Margin="0, 2, 0, 0"/>
                 <Border Grid.Row="4" Grid.ColumnSpan="4" BorderThickness="0, 1, 0, 1" BorderBrush="Black">
-                    <TextBox Grid.Row="4" Text="{Binding Result}" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+                    <TextBox Grid.Row="4" Text="{Binding Result[0], StringFormat='Encrypted text: {0}'}" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" 
+                             IsReadOnly="True" IsReadOnlyCaretVisible="True" />
                 </Border>
             </Grid>
         </Border>
@@ -133,11 +136,13 @@
                 </Grid.RowDefinitions>
                 <Border Grid.Row="0" Grid.ColumnSpan="4" BorderThickness="0, 1, 0, 1" BorderBrush="Black">
                     <StackPanel>
-                        <TextBox Grid.Row="0" Text="{Binding InputText, StringFormat='Text: {0}'}" TextWrapping="Wrap" VerticalScrollBarVisibility="Visible" Height="45"/>
-                        <TextBox Grid.Row="1" Text="{Binding InputKey, StringFormat='Key: {0}'}" VerticalAlignment="Center" />
+                        <TextBox Grid.Row="0" Text="{Binding InputText[1], StringFormat='Text: {0}'}" TextWrapping="Wrap" VerticalScrollBarVisibility="Visible" Height="45"
+                                 IsReadOnly="True" IsReadOnlyCaretVisible="True" />
+                        <TextBox Grid.Row="1" Text="{Binding InputKey[1], StringFormat='Key: {0}'}" VerticalAlignment="Center" 
+                                 IsReadOnly="True" IsReadOnlyCaretVisible="True" />
                     </StackPanel>
                 </Border>
-                <TextBlock Grid.Row="1" Grid.ColumnSpan="4" Text="{Binding InitialPermutationText}"/>
+                <TextBlock Grid.Row="1" Grid.ColumnSpan="4" Text="{Binding InitialPermutationText[1], StringFormat='Initial permutation: {0}'}" />
                 <DataGrid Grid.Row="2" Grid.ColumnSpan="4" ItemsSource="{Binding InfoDecoded}" 
                       RowHeaderWidth="0"
                       AutoGenerateColumns="False"
@@ -153,12 +158,13 @@
                         <DataGridTextColumn Header="Round" Binding="{Binding RoundNo}" Width="65"/>
                         <DataGridTextColumn Header="Left block" Binding="{Binding LeftPart}" Width="86"/>
                         <DataGridTextColumn Header="Right block" Binding="{Binding RightPart}" Width="96" />
-                        <DataGridTextColumn Header="Round key" Binding="{Binding RoundKey}"  Width="100"/>
+                        <DataGridTextColumn Header="Round key" Binding="{Binding RoundKey}"  Width="90"/>
                     </DataGrid.Columns>
                 </DataGrid>
-                <TextBlock Grid.Row="3" Grid.ColumnSpan="4" Text="{Binding AfterJoin}" Margin="0, 2, 0, 0"/>
+                <TextBlock Grid.Row="3" Grid.ColumnSpan="4" Text="{Binding AfterJoin[1], StringFormat='After join: {0}'}" Margin="0, 2, 0, 0"/>
                 <Border Grid.Row="4" Grid.ColumnSpan="4" BorderThickness="0, 1, 0, 1" BorderBrush="Black">
-                    <TextBox Grid.Row="4" Text="{Binding Result}" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+                    <TextBox Grid.Row="4" Text="{Binding Result[1], StringFormat='Decoded text: {0}'}" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" 
+                             IsReadOnly="True" IsReadOnlyCaretVisible="True"/>
                 </Border>
             </Grid>
         </Border>
