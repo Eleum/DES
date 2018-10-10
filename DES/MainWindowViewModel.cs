@@ -1,10 +1,13 @@
-﻿using System;
+﻿using Microsoft.Win32;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -19,13 +22,13 @@ namespace DES
             KEYBLOCKSIZE = 56,
             ROUNDS = 16;
 
-        private string _inputText, _inputKey, _textAndKey,
-            _initialPermutationText, _afterJoin, _result, _resultField,
-            _isEncrypt;
+        private string[] _inputText, _inputKey, _initialPermutationText, _afterJoin, _result;
+
+        private string _resultField, _isEncrypt;
 
         private bool _isDefaultKey, _isHexText, _isHexKey;
 
-        public string InputText
+        public string[] InputText
         {
             get
             {
@@ -38,7 +41,7 @@ namespace DES
             }
         }
 
-        public string InputKey
+        public string[] InputKey
         {
             get
             {
@@ -51,20 +54,7 @@ namespace DES
             }
         }
 
-        public string TextAndKey
-        {
-            get
-            {
-                return _textAndKey;
-            }
-            set
-            {
-                _textAndKey = value;
-                OnPropertyChanged("TextAndKey");
-            }
-        }
-
-        public string InitialPermutationText
+        public string[] InitialPermutationText
         {
             get
             {
@@ -77,7 +67,7 @@ namespace DES
             }
         }
 
-        public string AfterJoin
+        public string[] AfterJoin
         {
             get
             {
@@ -90,7 +80,7 @@ namespace DES
             }
         }
 
-        public string Result
+        public string[] Result
         {
             get
             {
@@ -207,10 +197,17 @@ namespace DES
 
         public ICommand EncryptCommand => new RelayCommand(o => StartOperation(0));
         public ICommand DecryptCommand => new RelayCommand(o => StartOperation(1));
+        public ICommand BrowseFilesCommand => new RelayCommand(o => BrowseFiles());
+        public ICommand SaveToFileCommand => new RelayCommand(o => SaveToFile());
 
-        //TODO: divide this into multiple functions
+        public MainWindowViewModel()
+        {
+            Info = new ObservableCollection<RoundInfo>();
+            InfoDecoded = new ObservableCollection<RoundInfo>();
+        }
+
         private IEnumerable<string> CompleteAndDivide(string text, InputMode mode)
-        { 
+        {
             switch (mode)
             {
                 case InputMode.PlainText:
@@ -228,14 +225,19 @@ namespace DES
                     break;
             }
 
-            var result = "";
             var blocksCount = -1;
-
             switch (mode)
             {
                 case InputMode.PlainText:
                     var binaryString = ToBinary(text);
+
                     blocksCount = binaryString.Length / SOURCEBLOCKSIZE;
+
+                    if (binaryString.Length / SOURCEBLOCKSIZE != (double)binaryString.Length / SOURCEBLOCKSIZE)
+                    {
+                        blocksCount = binaryString.Length / SOURCEBLOCKSIZE + 1;
+                        binaryString = binaryString.PadRight(blocksCount * SOURCEBLOCKSIZE, '0');
+                    }
 
                     for (int i = 0; i < blocksCount; i++)
                     {
@@ -247,46 +249,27 @@ namespace DES
                     blocksCount = text.Length * CHARSIZE / SOURCEBLOCKSIZE / 2;
                     for (int i = 0; i < blocksCount; i++)
                     {
-                        yield return string.Join("", 
+                        yield return string.Join("",
                             text.Substring(i * CHARSIZE * 2, CHARSIZE * 2)
                             .Select(x => HexToBinary(x.ToString())));
                     }
                     break;
             }
-            //return result;
         }
 
-        public MainWindowViewModel()
+        private void StartOperation(int type)
         {
-            IsEncrypt = "none";
-            //InputText = "0123456789ABCDEF";
-            InputKey = "133457799BBCDFF1";
-            //InputText = "Дима";
-            InputText = "asdfghjk";
-            InputText = "я пришел к тебе с приветом";
 
-        }
-
-        private Action<object> StartOperation(int type)
-        {
-            if (string.IsNullOrWhiteSpace(InputText) || string.IsNullOrWhiteSpace(InputKey))
-            {
-                MessageBox.Show("Text or key for operation cannot be empty", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                return null;
-            }
-
-            var result = string.Empty;
-            Info = new ObservableCollection<RoundInfo>();
-            InfoDecoded = new ObservableCollection<RoundInfo>();
-            TextAndKey = $"Initial text: {InputText}\nKey: {InputKey}";
+            if (!InitialErrorCheck()) return;
 
             GenerateRoundKeys();
+
+            var result = string.Empty;
+            var text = CompleteAndDivide(InputText[type], IsHexText ? InputMode.Hex : InputMode.PlainText);
 
             switch (type)
             {
                 case 0:
-                    var text = CompleteAndDivide(InputText, IsHexText ? InputMode.Hex : InputMode.PlainText);
-
                     text = text.Where(x => x.Distinct().Count() != 1);
 
                     foreach (var block in text)
@@ -299,25 +282,23 @@ namespace DES
                             .Select(x =>
                             {
                                 var temp = x.ToString("X");
-                                return temp.Length == CHARSIZE/4 ? temp : "0" + temp;
+                                return temp.Length == CHARSIZE / 4 ? temp : "0" + temp;
                             })
                         );
                         result += encodedPart;
                     }
-                    Result = $"Encrypted text: {result}";
-                    ResultField = Result.Split(' ')[2];
-                    IsEncrypt = "yes";
 
+                    Result[type] = $"Encrypted text: {result}";
+                    ResultField = Result[type].Split(' ')[2];
+                    IsEncrypt = "yes";
                     break;
                 case 1:
-                    var textToDecrypt = CompleteAndDivide(InputText, IsHexText ? InputMode.Hex : InputMode.PlainText);
-
                     ResultField = string.Empty;
                     var resultHex = string.Empty;
                     var resultPlain = string.Empty;
                     var hexString = string.Empty;
 
-                    foreach (var block in textToDecrypt)
+                    foreach (var block in text)
                     {
                         var decodedBlock = DecodeBlock(block);
 
@@ -328,13 +309,12 @@ namespace DES
                     }
 
                     resultPlain += HexToString(hexString);
-
-                    Result = $"Decrypted text: {resultPlain}";
-                    ResultField = $"Hex: {hexString}\nPlain text: {resultPlain}";
+                    Result[type] = $"Decrypted text: {resultPlain}";
+                    ResultField = $"Hex: {hexString}\n\nPlain text: {resultPlain}";
                     IsEncrypt = "no";
                     break;
             }
-            return null;
+            return;
         }
 
         /// <summary>
@@ -362,7 +342,7 @@ namespace DES
             {
                 var binary = Convert.ToString(x, 2).PadLeft(CHARSIZE, '0');
                 return binary;
-            } ));
+            }));
         }
 
         public static string HexToString(string source)
@@ -387,11 +367,7 @@ namespace DES
 
             for (int i = 0; i < binString.Length; i += CHARSIZE)
             {
-                var temp = Convert.ToString(Convert.ToInt64(binString.Substring(i, CHARSIZE), 2), 16).ToUpper();
-                while(temp.Length < 4)
-                {
-                    temp = "0" + temp;
-                }
+                var temp = Convert.ToString(Convert.ToInt32(binString.Substring(i, CHARSIZE), 2), 16).PadLeft(2, '0').ToUpper();
                 result += temp;
             }
 
@@ -406,7 +382,7 @@ namespace DES
         private string BinaryKey(string keyword, InputMode mode)
         {
             IEnumerable<string> key;
-            
+
             if (mode == InputMode.Hex)
             {
                 key = keyword.Select(x => HexToBinary(x.ToString()));
@@ -613,12 +589,12 @@ namespace DES
 
         private void GetLeftRight(ObservableCollection<RoundInfo> info, bool isReverse = false)
         {
-            for (int i = 1; i < ROUNDS+1; i++)
+            for (int i = 1; i < ROUNDS + 1; i++)
             {
                 LRs[0, i] = LRs[1, i - 1];
 
                 var expandedBlock = Transpose(TransposeType.ExpandedBlock, LRs[1, i - 1], ManagerMatrix.GetExpandedBlockMatrix());
-                var expression = FFunction(expandedBlock, isReverse ? roundKeys[ROUNDS-i] : roundKeys[i-1]);
+                var expression = FFunction(expandedBlock, isReverse ? roundKeys[ROUNDS - i] : roundKeys[i - 1]);
 
                 LRs[1, i] = XOROperation(LRs[0, i - 1], expression);
 
@@ -644,7 +620,7 @@ namespace DES
 
             var oneTimeShift = new[] { 1, 2, 9, 16 };
 
-            for (int i = 1; i < ROUNDS+1; i++)
+            for (int i = 1; i < ROUNDS + 1; i++)
             {
                 for (int j = 0; j < 2; j++)
                 {
@@ -660,6 +636,83 @@ namespace DES
                     ManagerMatrix.GetPBoxCompressMatrix()
                 );
             }
+        }
+
+        private void BrowseFiles()
+        {
+            var dialog = new OpenFileDialog()
+            {
+                DefaultExt = ".txt",
+                Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*"
+            };
+
+            if (dialog.ShowDialog() != true) return;
+
+            string fileName = dialog.FileName;
+            var parts = fileName.Split('.');
+            if (parts[parts.Length - 1] != "txt")
+            {
+                MessageBox.Show("Only .txt files are allowed", "File extension error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            InputText = File.ReadAllText(fileName, Encoding.UTF8);
+        }
+
+        private void SaveToFile()
+        {
+            if(string.IsNullOrEmpty(Result))
+            {
+                MessageBox.Show("There's nothing to write to a file", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                var dialog = new SaveFileDialog()
+                {
+                    DefaultExt = ".txt",
+                    Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*"
+                };
+
+                if (dialog.ShowDialog() != true) return;
+
+                string fileName = dialog.FileName;
+                File.WriteAllText(fileName, ResultField);
+                MessageBox.Show("File saved!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch(Exception e)
+            {
+                MessageBox.Show(e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private bool InitialErrorCheck()
+        {
+            if (string.IsNullOrWhiteSpace(InputText) || string.IsNullOrWhiteSpace(InputKey))
+            {
+                MessageBox.Show("Text or key for the operation cannot be empty", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return false;
+            }
+
+            if ((IsHexKey && InputKey.Length != 16) || (!IsHexKey && InputKey.Length != 8))
+            {
+                MessageBox.Show("The key has to be 8 bytes long (8 chars or 16 chars for HEX)", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+
+            if (IsHexText && !Regex.IsMatch(InputText, @"\A\b[0-9a-fA-F]+\b\Z"))
+            {
+                MessageBox.Show("Text is not valid hexadecimal string", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+
+            if (IsHexKey && !Regex.IsMatch(InputKey, @"\A\b[0-9a-fA-F]+\b\Z"))
+            {
+                MessageBox.Show("Key is not valid hexadecimal string", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+
+            return true;
         }
     }
 }
